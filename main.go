@@ -6,33 +6,62 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"time"
+
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 // Result Dados de saida do programa
-type Result struct {
+type result struct {
 	StatusCode  int    `json:"code"`
 	URL         string `json:"url"`
 	Description string `json:"description"`
 }
 
+// Lista de urls a serem monitoradas. Implementa a interface kingpin.Settings
+type urlList []url.URL
+
+func (u *urlList) Set(value string) error {
+	if url, err := url.Parse(value); err != nil {
+		log.Fatalf("URL inválida: [%s] %s", value, err.Error())
+	} else {
+		*u = append(*u, *url)
+	}
+	return nil
+}
+
+func (u *urlList) String() string {
+	return ""
+}
+
+func (u *urlList) IsCumulative() bool {
+	return true
+}
+
+// URLList recupera a lista de URLs do comando
+func URLList(s kingpin.Settings) (urls *[]url.URL) {
+	urls = new([]url.URL)
+	s.SetValue((*urlList)(urls))
+	return
+}
+
 var (
-	waitTimeout time.Duration
-	urls        []url.URL
+	timeoutFlag    = kingpin.Flag("timeout", "Especifica o timeout da requisição.").Short('t').Default("10s").Duration()
+	jsonFormatFlag = kingpin.Flag("json", "Saida no formato json.").Short('j').Default("false").Bool()
+	urls           = URLList(kingpin.Arg("urls", "URLs para monitorar.").Required())
 )
 
-func waitHTTP(u url.URL) Result {
+func waitHTTP(u url.URL) result {
 	client := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: *timeoutFlag,
 	}
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		log.Printf("Problem with dial: %v.\n", err.Error())
+		log.Println("Problem with dial: %v.\n", err.Error())
 	}
 
-	result := Result{
-		StatusCode: -1,
+	result := result{
+		StatusCode: 0,
 		URL:        u.String(),
 	}
 
@@ -50,19 +79,20 @@ func waitHTTP(u url.URL) Result {
 }
 
 func main() {
-	host := "http://google.com"
-	url, err := url.Parse(host)
+	kingpin.Version("0.0.1")
+	kingpin.CommandLine.HelpFlag.Short('h')
+	kingpin.Parse()
 
-	if err != nil {
-		log.Fatalf("bad hostname provided: %s. %s", host, err.Error())
-	}
+	response := waitHTTP((*urls)[0])
 
-	urls = append(urls, *url)
-
-	if r, err := json.Marshal(waitHTTP(*url)); err != nil {
-		log.Printf("ERROR: %s", err.Error())
+	if *jsonFormatFlag {
+		if r, err := json.Marshal(response); err != nil {
+			log.Printf("ERROR: %s", err.Error())
+		} else {
+			fmt.Print(string(r))
+		}
 	} else {
-		fmt.Print(string(r))
+		fmt.Printf("[%s]\t %s\n", response.URL, response.Description)
 	}
 
 }
