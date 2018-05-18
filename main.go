@@ -57,7 +57,7 @@ func waitHTTP(u url.URL) result {
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		log.Println("Problem with dial: %v.\n", err.Error())
+		log.Printf("Problem with dial: %v.\n", err.Error())
 	}
 
 	result := result{
