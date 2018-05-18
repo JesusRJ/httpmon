@@ -1,2 +1,6 @@
 # HttpMon
-Script para monitorar URLs http
+Utilitário para monitorar disponibilidade de URLs http
+
+## Usage
+
+httpmon [-j|--json] -t X  URL
