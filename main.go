@@ -6,48 +6,16 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-// Result Dados de saida do programa
-type result struct {
-	StatusCode  int    `json:"code"`
-	URL         string `json:"url"`
-	Description string `json:"description"`
-}
-
-// Lista de urls a serem monitoradas. Implementa a interface kingpin.Settings
-type urlList []url.URL
-
-func (u *urlList) Set(value string) error {
-	if url, err := url.Parse(value); err != nil {
-		log.Fatalf("URL inválida: [%s] %s", value, err.Error())
-	} else {
-		*u = append(*u, *url)
-	}
-	return nil
-}
-
-func (u *urlList) String() string {
-	return ""
-}
-
-func (u *urlList) IsCumulative() bool {
-	return true
-}
-
-// URLList recupera a lista de URLs do comando
-func URLList(s kingpin.Settings) (urls *[]url.URL) {
-	urls = new([]url.URL)
-	s.SetValue((*urlList)(urls))
-	return
-}
-
 var (
-	timeoutFlag    = kingpin.Flag("timeout", "Especifica o timeout da requisição.").Short('t').Default("10s").Duration()
-	jsonFormatFlag = kingpin.Flag("json", "Saida no formato json.").Short('j').Default("false").Bool()
-	urls           = URLList(kingpin.Arg("urls", "URLs para monitorar.").Required())
+	app            = kingpin.New("httpmon", "Utilitário para monitorar disponibilidade de URLs http.")
+	timeoutFlag    = app.Flag("timeout", "Especifica o timeout da requisição.").Short('t').Default("10s").Duration()
+	jsonFormatFlag = app.Flag("json", "Saida no formato json.").Short('j').Default("false").Bool()
+	urls           = URLList(app.Arg("urls", "URLs para monitorar.").Required())
 )
 
 func waitHTTP(u url.URL) result {
@@ -79,9 +47,11 @@ func waitHTTP(u url.URL) result {
 }
 
 func main() {
-	kingpin.Version("0.0.1")
-	kingpin.CommandLine.HelpFlag.Short('h')
-	kingpin.Parse()
+	app.Version("0.0.1")
+	app.Author("Reginaldo Jesus <reginaldo.jesus@gmail.com>")
+	app.HelpFlag.Short('h')
+
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	response := waitHTTP((*urls)[0])
 
