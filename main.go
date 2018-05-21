@@ -11,11 +11,19 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
+// result Dados de saida do programa.
+type result struct {
+	StatusCode        int    `json:"code"`
+	StatusDescription string `json:"description"`
+	URL               string `json:"url"`
+}
+
 var (
-	app            = kingpin.New("httpmon", "Utilitário para monitorar disponibilidade de URLs http.")
-	timeoutFlag    = app.Flag("timeout", "Especifica o timeout da requisição.").Short('t').Default("10s").Duration()
-	jsonFormatFlag = app.Flag("json", "Saida no formato json.").Short('j').Default("false").Bool()
-	urls           = URLList(app.Arg("urls", "URLs para monitorar.").Required())
+	app               = kingpin.New("httpmon", "Utilitário para monitorar disponibilidade de URLs http.")
+	timeoutFlag       = app.Flag("timeout", "Especifica o timeout da requisição.").Short('t').Default("10s").Duration()
+	verboseFormatFlag = app.Flag("verbose", "Imprime mais informações.").Short('v').Default("false").Bool()
+	jsonFormatFlag    = app.Flag("json", "Saida no formato json.").Short('j').Default("false").Bool()
+	urlFlag           = app.Flag("url", "URL a monitorar.").Short('u').Required().String()
 )
 
 func waitHTTP(u url.URL) result {
@@ -34,13 +42,12 @@ func waitHTTP(u url.URL) result {
 	}
 
 	resp, err := client.Do(req)
+
 	if err != nil {
-		// log.Printf("Problem with request: %s.\n", err.Error())
-		result.Description = err.Error()
-	} else if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		// log.Printf("Received %d from %s\n", resp.StatusCode, u.String())
+		result.StatusDescription = err.Error()
+	} else {
 		result.StatusCode = resp.StatusCode
-		result.Description = resp.Status
+		result.StatusDescription = resp.Status
 	}
 
 	return result
@@ -53,16 +60,30 @@ func main() {
 
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	response := waitHTTP((*urls)[0])
+	u, err := url.Parse(*urlFlag)
 
-	if *jsonFormatFlag {
+	if err != nil {
+		log.Fatalf("Invalid URL [%s] %s", *urlFlag, err.Error())
+	}
+
+	response := waitHTTP(*u)
+
+	switch {
+	case *jsonFormatFlag:
 		if r, err := json.Marshal(response); err != nil {
-			log.Printf("ERROR: %s", err.Error())
+			log.Printf("ERROR: %s\n", err.Error())
 		} else {
-			fmt.Print(string(r))
+			fmt.Println(string(r))
 		}
-	} else {
-		fmt.Printf("[%s]\t %s\n", response.URL, response.Description)
+	case *verboseFormatFlag:
+		log.Printf("[%s]\t %s\n", response.URL, response.StatusDescription)
+	default:
+		switch {
+		case response.StatusCode >= 200 && response.StatusCode < 300:
+			fmt.Println("URL disponível")
+		default:
+			fmt.Println("URL indisponível")
+		}
 	}
 
 }
