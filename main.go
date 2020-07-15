@@ -3,15 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-// result Dados de saida do programa.
+// result Result output
 type result struct {
 	StatusCode        int    `json:"code"`
 	StatusDescription string `json:"description"`
@@ -20,7 +19,7 @@ type result struct {
 
 var (
 	app               = kingpin.New("httpmon", "Utilitário para monitorar disponibilidade de URLs http.")
-	timeoutFlag       = app.Flag("timeout", "Especifica o timeout da requisição.").Short('t').Default("10s").Duration()
+	timeoutFlag       = app.Flag("timeout", "Especifica o timeout da requisição.").Short('t').Default("5s").Duration()
 	verboseFormatFlag = app.Flag("verbose", "Imprime mais informações.").Short('v').Default("false").Bool()
 	jsonFormatFlag    = app.Flag("json", "Saida no formato json.").Short('j').Default("false").Bool()
 	urlFlag           = app.Flag("url", "URL a monitorar.").Short('u').Required().String()
